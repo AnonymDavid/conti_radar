@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(canopen_chain_node)
 
+add_compile_options(-std=c++11)
+
 find_package(catkin REQUIRED
   COMPONENTS
     canopen_master

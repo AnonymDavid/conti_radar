@@ -8,9 +8,6 @@ find_package(catkin REQUIRED
     can_msgs
     roscpp
     socketcan_interface
-    pb_msgs
-    geometry_msgs
-    sensor_msgs
 )
 
 catkin_package(
@@ -19,18 +16,10 @@ catkin_package(
   LIBRARIES
     socketcan_to_topic
     topic_to_socketcan
-    decode
-    decode_cluster
-    warning
-    speedinfo
-    configuration
   CATKIN_DEPENDS
     can_msgs
     roscpp
     socketcan_interface
-    pb_msgs
-    geometry_msgs
-    sensor_msgs
 )
 
 include_directories(
@@ -61,61 +50,6 @@ add_dependencies(topic_to_socketcan
   ${catkin_EXPORTED_TARGETS}
 )
 
-# decode 
-add_library(decode
-  src/decode.cpp
-)
-target_link_libraries(decode
-  ${catkin_LIBRARIES}
-)
-add_dependencies(decode
-  ${catkin_EXPORTED_TARGETS}
-)
-
-# decode_cluster
-add_library(decode_cluster
-  src/decode_cluster.cpp
-)
-target_link_libraries(decode_cluster
-  ${catkin_LIBRARIES}
-)
-add_dependencies(decode_cluster
-  ${catkin_EXPORTED_TARGETS}
-)
-
-# warning
-add_library(warning
-  src/warning.cpp
-)
-target_link_libraries(warning
-  ${catkin_LIBRARIES}
-)
-add_dependencies(warning
-  ${catkin_EXPORTED_TARGETS}
-)
-
-# speedinfo
-add_library(speedinfo
-  src/speedinfo.cpp
-)
-target_link_libraries(speedinfo
-  ${catkin_LIBRARIES}
-)
-add_dependencies(speedinfo
-  ${catkin_EXPORTED_TARGETS}
-)
-
-# configuration
-add_library(configuration
-  src/configuration.cpp
-)
-target_link_libraries(configuration
-  ${catkin_LIBRARIES}
-)
-add_dependencies(configuration
-  ${catkin_EXPORTED_TARGETS}
-)
-
 # socketcan_to_topic_node
 add_executable(socketcan_to_topic_node
   src/socketcan_to_topic_node.cpp
@@ -132,54 +66,6 @@ add_executable(topic_to_socketcan_node
 )
 target_link_libraries(topic_to_socketcan_node
   topic_to_socketcan
-  ${catkin_LIBRARIES}
-)
-
-# decode_node
-add_executable(decode_node
-  src/decode_node.cpp
-)
-target_link_libraries(decode_node
-  decode
-  ${catkin_LIBRARIES}
-)
-
-# decode_node_cluster
-add_executable(decode_node_cluster
-  src/decode_node_cluster.cpp
-)
-target_link_libraries(decode_node_cluster
-  decode_cluster
-  ${catkin_LIBRARIES}
-)
-
-# warning_node
-add_executable(warning_node
-  src/warning_node.cpp
-)
-target_link_libraries(warning_node
-  warning
-  ${catkin_LIBRARIES}
-)
-
-# speedinfo_node
-add_executable(speedinfo_node
-  src/speedinfo_node.cpp
-
-)
-target_link_libraries(speedinfo_node
-  speedinfo
-  ${catkin_LIBRARIES}
-)
-
-
-# configuration_node
-add_executable(configuration_node
-  src/configuration_node.cpp
-
-)
-target_link_libraries(configuration_node
-  configuration
   ${catkin_LIBRARIES}
 )
 

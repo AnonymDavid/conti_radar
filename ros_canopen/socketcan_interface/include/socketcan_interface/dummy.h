@@ -1,6 +1,8 @@
 #ifndef SOCKETCAN_INTERFACE_DUMMY_H
 #define SOCKETCAN_INTERFACE_DUMMY_H
 
+#include <unordered_map>
+
 #include "interface.h"
 #include "dispatcher.h"
 #include "string.h"
@@ -9,9 +11,9 @@
 namespace can{
 
 class DummyInterface : public DriverInterface{
-    typedef FilteredDispatcher<const unsigned int, CommInterface::FrameListener> FrameDispatcher;
+    typedef FilteredDispatcher<unsigned int, CommInterface::FrameListener> FrameDispatcher;
     typedef SimpleDispatcher<StateInterface::StateListener> StateDispatcher;
-    typedef boost::unordered_multimap<std::string, Frame> Map;
+    typedef std::unordered_multimap<std::string, Frame> Map;
     FrameDispatcher frame_dispatcher_;
     StateDispatcher state_dispatcher_;
     State state_;
@@ -53,10 +55,10 @@ public:
         return true;
     }
 
-    virtual FrameListener::Ptr createMsgListener(const FrameDelegate &delegate){
+    virtual FrameListenerConstSharedPtr createMsgListener(const FrameDelegate &delegate){
         return frame_dispatcher_.createListener(delegate);
     }
-    virtual FrameListener::Ptr createMsgListener(const Frame::Header&h , const FrameDelegate &delegate){
+    virtual FrameListenerConstSharedPtr createMsgListener(const Frame::Header&h , const FrameDelegate &delegate){
         return frame_dispatcher_.createListener(h, delegate);
     }
 
@@ -87,11 +89,12 @@ public:
         return true;
     };
 
-    virtual StateListener::Ptr createStateListener(const StateDelegate &delegate){
+    virtual StateListenerConstSharedPtr createStateListener(const StateDelegate &delegate){
       return state_dispatcher_.createListener(delegate);
     };
 
 };
+typedef std::shared_ptr<DummyInterface> DummyInterfaceSharedPtr;
 
 
 }

@@ -59,7 +59,7 @@ TEST(SocketCANToTopicTest, checkCorrectData)
   ros::NodeHandle nh(""), nh_param("~");
 
   // create the dummy interface
-  boost::shared_ptr<can::DummyInterface> driver_ = boost::make_shared<can::DummyInterface>(true);
+  can::DummyInterfaceSharedPtr driver_ = std::make_shared<can::DummyInterface>(true);
 
   // start the to topic bridge.
   socketcan_bridge::SocketCANToTopic to_topic_bridge(&nh, &nh_param, driver_);
@@ -96,8 +96,10 @@ TEST(SocketCANToTopicTest, checkCorrectData)
   ASSERT_EQ(1, message_collector_.messages.size());
 
   // compare the received can_msgs::Frame message to the sent can::Frame.
-  can_msgs::Frame received;
-  received = message_collector_.messages.back();
+  can::Frame received;
+  can_msgs::Frame msg = message_collector_.messages.back();
+  socketcan_bridge::convertMessageToSocketCAN(msg, received);
+
   EXPECT_EQ(received.id, f.id);
   EXPECT_EQ(received.dlc, f.dlc);
   EXPECT_EQ(received.is_extended, f.is_extended);
@@ -118,7 +120,7 @@ TEST(SocketCANToTopicTest, checkInvalidFrameHandling)
   ros::NodeHandle nh(""), nh_param("~");
 
   // create the dummy interface
-  boost::shared_ptr<can::DummyInterface> driver_ = boost::make_shared<can::DummyInterface>(true);
+  can::DummyInterfaceSharedPtr driver_ = std::make_shared<can::DummyInterface>(true);
 
   // start the to topic bridge.
   socketcan_bridge::SocketCANToTopic to_topic_bridge(&nh, &nh_param, driver_);
@@ -157,7 +159,7 @@ TEST(SocketCANToTopicTest, checkCorrectCanIdFilter)
   ros::NodeHandle nh(""), nh_param("~");
 
   // create the dummy interface
-  boost::shared_ptr<can::DummyInterface> driver_ = boost::make_shared<can::DummyInterface>(true);
+  can::DummyInterfaceSharedPtr driver_ = std::make_shared<can::DummyInterface>(true);
 
   //create can_id vector with id that should be passed and published to ros
   std::vector<unsigned int> pass_can_ids;
@@ -198,8 +200,10 @@ TEST(SocketCANToTopicTest, checkCorrectCanIdFilter)
   ASSERT_EQ(1, message_collector_.messages.size());
 
   // compare the received can_msgs::Frame message to the sent can::Frame.
-  can_msgs::Frame received;
-  received = message_collector_.messages.back();
+  can::Frame received;
+  can_msgs::Frame msg = message_collector_.messages.back();
+  socketcan_bridge::convertMessageToSocketCAN(msg, received);
+
   EXPECT_EQ(received.id, f.id);
   EXPECT_EQ(received.dlc, f.dlc);
   EXPECT_EQ(received.is_extended, f.is_extended);
@@ -213,7 +217,7 @@ TEST(SocketCANToTopicTest, checkInvalidCanIdFilter)
   ros::NodeHandle nh(""), nh_param("~");
 
   // create the dummy interface
-  boost::shared_ptr<can::DummyInterface> driver_ = boost::make_shared<can::DummyInterface>(true);
+  can::DummyInterfaceSharedPtr driver_ = std::make_shared<can::DummyInterface>(true);
 
   //create can_id vector with id that should not be received on can bus
   std::vector<unsigned int> pass_can_ids;
@@ -259,7 +263,7 @@ TEST(SocketCANToTopicTest, checkMaskFilter)
   ros::NodeHandle nh(""), nh_param("~");
 
   // create the dummy interface
-  boost::shared_ptr<can::DummyInterface> driver_ = boost::make_shared<can::DummyInterface>(true);
+  can::DummyInterfaceSharedPtr driver_ = std::make_shared<can::DummyInterface>(true);
 
   // setup filter
   can::FilteredFrameListener::FilterVector filters;
@@ -298,6 +302,7 @@ TEST(SocketCANToTopicTest, checkMaskFilter)
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "test_to_topic");
+  ros::NodeHandle nh;
   ros::WallDuration(1.0).sleep();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

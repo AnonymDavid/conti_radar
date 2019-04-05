@@ -1,6 +1,7 @@
 #ifndef H_CANOPEN_ROS_CHAIN
 #define H_CANOPEN_ROS_CHAIN
 
+#include <memory>
 #include <canopen_master/canopen.h>
 #include <canopen_master/can_layer.h>
 #include <canopen_chain_node/GetObject.h>
@@ -10,33 +11,12 @@
 #include <std_srvs/Trigger.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <boost/filesystem/path.hpp>
-#include <boost/weak_ptr.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <pluginlib/class_loader.h>
+#include <pluginlib/class_loader.hpp>
 
 namespace canopen{
 
-class PublishFunc{
-public:
-    typedef boost::function<void()> func_type;
-
-    static func_type create(ros::NodeHandle &nh,  const std::string &name, boost::shared_ptr<canopen::Node> node, const std::string &key, bool force);
-private:
-    template <typename Tpub, typename Tobj, bool forced> static void publish(ros::Publisher &pub, ObjectStorage::Entry<Tobj> &entry){
-		Tpub msg;
-		msg.data = (const typename Tpub::_data_type &)(forced? entry.get() : entry.get_cached());
-        pub.publish(msg);
-    }
-    template<typename Tpub, typename Tobj> static func_type create(ros::NodeHandle &nh,  const std::string &name, ObjectStorage::Entry<Tobj> entry, bool force){
-        if(!entry.valid()) return 0;
-        ros::Publisher pub = nh.advertise<Tpub>(name, 1);
-        if(force){
-            return boost::bind(PublishFunc::publish<Tpub, Tobj, true>, pub, entry);
-        }else{
-            return boost::bind(PublishFunc::publish<Tpub, Tobj, false>, pub, entry);
-        }
-    }
-};
+typedef std::function<void()> PublishFuncType;
+PublishFuncType createPublishFunc(ros::NodeHandle &nh,  const std::string &name, canopen::NodeSharedPtr node, const std::string &key, bool force);
 
 class MergedXmlRpcStruct : public XmlRpc::XmlRpcValue{
     MergedXmlRpcStruct(const XmlRpc::XmlRpcValue& a) :XmlRpc::XmlRpcValue(a){ assertStruct(); }
@@ -58,11 +38,11 @@ public:
 };
 
 class Logger: public DiagGroup<canopen::Layer>{
-    const boost::shared_ptr<canopen::Node> node_;
+    const canopen::NodeSharedPtr node_;
 
-    std::vector<boost::function< void (diagnostic_updater::DiagnosticStatusWrapper &)> > entries_;
+    std::vector<std::function< void (diagnostic_updater::DiagnosticStatusWrapper &)> > entries_;
 
-    static void log_entry(diagnostic_updater::DiagnosticStatusWrapper &stat, uint8_t level, const std::string &name, boost::function<std::string()> getter){
+    static void log_entry(diagnostic_updater::DiagnosticStatusWrapper &stat, uint8_t level, const std::string &name, std::function<std::string()> getter){
         if(stat.level >= level){
             try{
                 stat.add(name, getter());
@@ -73,14 +53,14 @@ class Logger: public DiagGroup<canopen::Layer>{
     }
 
 public:
-    Logger(boost::shared_ptr<canopen::Node> node):  node_(node) { add(node_); }
+    Logger(canopen::NodeSharedPtr node):  node_(node) { add(node_); }
 
     bool add(uint8_t level, const std::string &key, bool forced){
         try{
             ObjectDict::Key k(key);
-            const boost::shared_ptr<const ObjectDict::Entry> entry = node_->getStorage()->dict_->get(k);
+            const ObjectDict::EntryConstSharedPtr entry = node_->getStorage()->dict_->get(k);
             std::string name = entry->desc.empty() ? key : entry->desc;
-            entries_.push_back(boost::bind(log_entry, _1, level, name, node_->getStorage()->getStringReader(k, !forced)));
+            entries_.push_back(std::bind(log_entry, std::placeholders::_1, level, name, node_->getStorage()->getStringReader(k, !forced)));
             return true;
         }
         catch(std::exception& e){
@@ -89,8 +69,8 @@ public:
         }
     }
 
-    template<typename T> void add(const boost::shared_ptr<T> &n){
-        DiagGroup::add(boost::static_pointer_cast<canopen::Layer>(n));
+    template<typename T> void add(const std::shared_ptr<T> &n){
+        DiagGroup::add(std::static_pointer_cast<canopen::Layer>(n));
     }
 
     virtual void log(diagnostic_updater::DiagnosticStatusWrapper &stat){
@@ -110,44 +90,49 @@ public:
     }
     virtual ~Logger() {}
 };
+typedef std::shared_ptr<Logger> LoggerSharedPtr;
 
 class GuardedClassLoaderList {
-    static std::vector< boost::shared_ptr<pluginlib::ClassLoaderBase> >& guarded_loaders(){
-        static std::vector< boost::shared_ptr<pluginlib::ClassLoaderBase> > loaders;
-        return loaders;
-    }
 public:
-    static void addLoader(boost::shared_ptr<pluginlib::ClassLoaderBase> b){
+    typedef std::shared_ptr<pluginlib::ClassLoaderBase> ClassLoaderBaseSharedPtr;
+    static void addLoader(ClassLoaderBaseSharedPtr b){
         guarded_loaders().push_back(b);
     }
    ~GuardedClassLoaderList(){
        guarded_loaders().clear();
    }
+private:
+   static std::vector< ClassLoaderBaseSharedPtr>& guarded_loaders(){
+       static std::vector<ClassLoaderBaseSharedPtr> loaders;
+       return loaders;
+   }
 };
 
 template<typename T> class GuardedClassLoader {
     typedef pluginlib::ClassLoader<T> Loader;
-    boost::shared_ptr<Loader> loader_;
+    std::shared_ptr<Loader> loader_;
 public:
+    typedef std::shared_ptr<T> ClassSharedPtr;
     GuardedClassLoader(const std::string& package, const std::string& allocator_base_class)
     : loader_(new Loader(package, allocator_base_class)) {
         GuardedClassLoaderList::addLoader(loader_);
     }
-    boost::shared_ptr<T> createInstance(const std::string& lookup_name){
-        return loader_->createInstance(lookup_name);
+    ClassSharedPtr createInstance(const std::string& lookup_name){
+        return loader_->createUniqueInstance(lookup_name);
     }
 };
 
 template<typename T> class ClassAllocator : public GuardedClassLoader<typename T::Allocator> {
 public:
+    typedef std::shared_ptr<T> ClassSharedPtr;
     ClassAllocator (const std::string& package, const std::string& allocator_base_class) : GuardedClassLoader<typename T::Allocator>(package, allocator_base_class) {}
-    template<typename T1> boost::shared_ptr<T> allocateInstance(const std::string& lookup_name, const T1 & t1){
+    template<typename T1> ClassSharedPtr allocateInstance(const std::string& lookup_name, const T1 & t1){
         return this->createInstance(lookup_name)->allocate(t1);
     }
-    template<typename T1, typename T2> boost::shared_ptr<T> allocateInstance(const std::string& lookup_name, const T1 & t1, const T2 & t2){
+    template<typename T1, typename T2> ClassSharedPtr allocateInstance(const std::string& lookup_name, const T1 & t1, const T2 & t2){
         return this->createInstance(lookup_name)->allocate(t1, t2);
     }
-    template<typename T1, typename T2, typename T3> boost::shared_ptr<T> allocateInstance(const std::string& lookup_name, const T1 & t1, const T2 & t2, const T3 & t3){
+    template<typename T1, typename T2, typename T3> ClassSharedPtr allocateInstance(const std::string& lookup_name, const T1 & t1, const T2 & t2, const T3 & t3){
         return this->createInstance(lookup_name)->allocate(t1, t2, t3);
     }
 };
@@ -155,18 +140,18 @@ class RosChain : GuardedClassLoaderList, public canopen::LayerStack {
     GuardedClassLoader<can::DriverInterface> driver_loader_;
     ClassAllocator<canopen::Master> master_allocator_;
 protected:
-    boost::shared_ptr<can::DriverInterface> interface_;
-    boost::shared_ptr<Master> master_;
-    boost::shared_ptr<canopen::LayerGroupNoDiag<canopen::Node> > nodes_;
-    boost::shared_ptr<canopen::LayerGroupNoDiag<canopen::EMCYHandler> > emcy_handlers_;
-    std::map<std::string, boost::shared_ptr<canopen::Node> > nodes_lookup_;
-    boost::shared_ptr<canopen::SyncLayer> sync_;
-    std::vector<boost::shared_ptr<Logger > > loggers_;
-    std::vector<PublishFunc::func_type> publishers_;
+    can::DriverInterfaceSharedPtr interface_;
+    MasterSharedPtr master_;
+    std::shared_ptr<canopen::LayerGroupNoDiag<canopen::Node> > nodes_;
+    std::shared_ptr<canopen::LayerGroupNoDiag<canopen::EMCYHandler> > emcy_handlers_;
+    std::map<std::string, canopen::NodeSharedPtr > nodes_lookup_;
+    canopen::SyncLayerSharedPtr sync_;
+    std::vector<LoggerSharedPtr > loggers_;
+    std::vector<PublishFuncType> publishers_;
 
-    can::StateInterface::StateListener::Ptr state_listener_;
+    can::StateListenerConstSharedPtr state_listener_;
 
-    boost::scoped_ptr<boost::thread> thread_;
+    std::unique_ptr<boost::thread> thread_;
 
     ros::NodeHandle nh_;
     ros::NodeHandle nh_priv_;
@@ -186,14 +171,14 @@ protected:
 
     struct HeartbeatSender{
       can::Frame frame;
-      boost::shared_ptr<can::DriverInterface> interface;
+      can::DriverInterfaceSharedPtr interface;
       bool send(){
           return interface && interface->send(frame);
       }
     } hb_sender_;
     Timer heartbeat_timer_;
 
-    boost::atomic<bool> running_;
+    std::atomic<bool> running_;
     boost::mutex diag_mutex_;
 
     bool reset_errors_before_recover_;
@@ -214,7 +199,7 @@ protected:
     bool setup_sync();
     bool setup_heartbeat();
     bool setup_nodes();
-    virtual bool nodeAdded(XmlRpc::XmlRpcValue &params, const boost::shared_ptr<canopen::Node> &node, const boost::shared_ptr<Logger> &logger);
+    virtual bool nodeAdded(XmlRpc::XmlRpcValue &params, const canopen::NodeSharedPtr &node, const LoggerSharedPtr &logger);
     void report_diagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat);
     virtual bool setup_chain();
 public:
@@ -226,4 +211,3 @@ public:
 } //namespace canopen
 
 #endif
-

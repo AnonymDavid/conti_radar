@@ -74,3 +74,17 @@ cansend can0 202#C600030007 // Minimum value of objects probability of existence
 
 Other option to configure the radar is to modify the values of configuration_vars.h inside the header folder of socketcan brige. Please remember that is necessary to build the package again in order to save the values chosen in the configuration header file.
 
+# Radar pointcloud
+
+New feature added. Point cloud topic of objects with the name /radar_pointcloud.
+
+# Radar manuals and documentacion
+
+Check folder doc
+
+# Author
+
+Name: Sergio Casas Pastor
+email: sergiocp@ntu.edu.sg
+
+
