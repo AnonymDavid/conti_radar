@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
   ros::NodeHandle nh(""), nh_param("~");
 
   std::string can_device;
-  nh_param.param<std::string>("can_device", can_device, "can0");
+  nh_param.param<std::string>("can_device", can_device, "can1");
 
   can::ThreadedSocketCANInterfaceSharedPtr driver = std::make_shared<can::ThreadedSocketCANInterface> ();
 

@@ -23,7 +23,7 @@
 
     <node name="speed_info_node" pkg="radar_driver" type="speed_info_node" />
 
-    <node name="configuration_node" pkg="radar_driver" type="configuration_node" />
+    <!-- <node name="configuration_node" pkg="radar_driver" type="configuration_node" /> -->
 
 <!-- Radar markers visualization -->
 
@@ -40,10 +40,10 @@
 
 <!-- Radar rviz -->
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" />
+    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" /> -->
 
 <!-- Kalman filter -->
 
-   <!-- <node name="extendedkf" pkg="kalman_filter" type="extendedkf" />  -->
+   <node name="extendedkf" pkg="kalman_filter" type="extendedkf" />
 
 </launch>
